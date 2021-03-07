@@ -1,55 +1,116 @@
-import { StatusBar } from 'expo-status-bar';
-import React, {useState, useEffect} from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { GiftedChat } from 'react-native-gifted-chat';
+import React, { useContext, useEffect, useState } from 'react';
+import { Bubble, GiftedChat } from 'react-native-gifted-chat';
 
-import firebaseSvc from '../../FirebaseSvc';
+import { kitty } from '../Chatkitty';
+import Loading from '../components/Loading';
+import { AuthContext } from '../navigation/AuthProvider';
 
-export default function Chat(navigation)  {
+export default function ChatScreen({ route }) {
+  const { user } = useContext(AuthContext);
+  const { channel } = route.params;
 
-  const [Messages, setMessages] = useState([])
-  const [Email, setEmail] = useState('')
-  const [Name, setName] = useState('')
-  const [Avatar, setAvatar] = useState('')
-  const [ID, setID] = useState('')
-  const [_ID, set_ID] = useState('')
-
-
-  const getUser = () => {
-    const user = auth().currentUser
-    return{
-      name: user.name,
-      email: user.email,
-      avatar: user.avatar,
-      id: firebaseSvc.uid,
-      _id: firebaseSvc.uid
-    }
-  }
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadEarlier, setLoadEarlier] = useState(false);
+  const [isLoadingEarlier, setIsLoadingEarlier] = useState(false);
+  const [messagePaginator, setMessagePaginator] = useState(null);
 
   useEffect(() => {
-    firebaseSvc.refOn(message =>
-      this.setState(previousState => ({
-        messages: GiftedChat.append(previousState.messages, message)
-      }))
-    ); 
+    const startChatSessionResult = kitty.startChatSession({
+      channel: channel,
+      onReceivedMessage: (message) => {
+        setMessages((currentMessages) =>
+            GiftedChat.append(currentMessages, [mapMessage(message)])
+        );
+      },
+    });
 
-    firebaseSvc.refOff();
-  }, [])
+    kitty
+    .getMessages({
+      channel: channel,
+    })
+    .then((result) => {
+      setMessages(result.paginator.items.map(mapMessage));
+
+      setMessagePaginator(result.paginator);
+      setLoadEarlier(result.paginator.hasNextPage);
+
+      setLoading(false);
+    });
+
+    return startChatSessionResult.session.end;
+  }, [user, channel]);
+
+  async function handleSend(pendingMessages) {
+    await kitty.sendMessage({
+      channel: channel,
+      body: pendingMessages[0].text,
+    });
+  }
+
+  async function handleLoadEarlier() {
+    if (!messagePaginator.hasNextPage) {
+      setLoadEarlier(false);
+
+      return;
+    }
+
+    setIsLoadingEarlier(true);
+
+    const nextPaginator = await messagePaginator.nextPage();
+
+    setMessagePaginator(nextPaginator);
+
+    setMessages((currentMessages) =>
+        GiftedChat.prepend(currentMessages, nextPaginator.items.map(mapMessage))
+    );
+
+    setIsLoadingEarlier(false);
+  }
+
+  function renderBubble(props) {
+    return (
+        <Bubble
+            {...props}
+            wrapperStyle={{
+              left: {
+                backgroundColor: '#d3d3d3',
+              },
+            }}
+        />
+    );
+  }
+
+  if (loading) {
+    return <Loading />;
+  }
 
   return (
-    <GiftedChat 
-      messages={Messages}
-      onSend={firebaseSvc.send}
-      user={getUser}
-    />
+      <GiftedChat
+          messages={messages}
+          onSend={handleSend}
+          user={mapUser(user)}
+          loadEarlier={loadEarlier}
+          isLoadingEarlier={isLoadingEarlier}
+          onLoadEarlier={handleLoadEarlier}
+          renderBubble={renderBubble}
+      />
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+function mapMessage(message) {
+  return {
+    _id: message.id,
+    text: message.body,
+    createdAt: new Date(message.createdTime),
+    user: mapUser(message.user),
+  };
+}
+
+function mapUser(user) {
+  return {
+    _id: user.id,
+    name: user.displayName,
+    avatar: user.displayPictureUrl,
+  };
+}

@@ -1,5 +1,4 @@
 import { NavigationContainer } from '@react-navigation/native';
-import { CurrentUser } from 'chatkitty/build/main/lib/model/current-user';
 import React, { useContext, useEffect, useState } from 'react';
 
 import { kitty } from '../Chatkitty';
@@ -24,7 +23,7 @@ export default function Routes(){
             }
             setLoading(false);
         });
-    }, [initializing,setUser]);
+    }, [initializing, setUser]);
 
     if (loading) {
         return <Loading />;
