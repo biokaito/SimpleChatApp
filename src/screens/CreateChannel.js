@@ -13,7 +13,7 @@ export default function CreateChannel ({navigation}){
         if(channelName.length > 0){
             kitty
             .createChannel({
-                type: 'PUBLIC',
+                type: 'PRIVATE',
                 name: channelName,
             })
             .then(() => navigation.navigate('Home'));
