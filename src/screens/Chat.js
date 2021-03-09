@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Bubble, GiftedChat, Avatar } from 'react-native-gifted-chat';
+import { StyleSheet, View,Text } from 'react-native';
 
 import { kitty } from '../Chatkitty';
 import Loading from '../components/Loading';
@@ -14,6 +15,7 @@ export default function ChatScreen({ route, navigation }) {
   const [loadEarlier, setLoadEarlier] = useState(false);
   const [isLoadingEarlier, setIsLoadingEarlier] = useState(false);
   const [messagePaginator, setMessagePaginator] = useState(null);
+  const [typing, setTyping] = useState(null);
 
   useEffect(() => {
     const startChatSessionResult = kitty.startChatSession({
@@ -23,6 +25,16 @@ export default function ChatScreen({ route, navigation }) {
             GiftedChat.append(currentMessages, [mapMessage(message)])
         );
       },
+      onTypingStarted: (typingUser) => {
+        if(typingUser.id !== user.id){
+          setTyping(typingUser);
+        }
+      },
+      onTypingStopped: (typingUser) => {
+        if(typingUser.id == user.id){
+          setTyping(null);
+        }
+      }
     });
 
     kitty
@@ -102,6 +114,43 @@ export default function ChatScreen({ route, navigation }) {
       />
     )
   }
+  
+  function mapMessage(message) {
+    return {
+      _id: message.id,
+      text: message.body,
+      createdAt: new Date(message.createdTime),
+      user: mapUser(message.user),
+    };
+  }
+  
+  function mapUser(user) {
+    return {
+      _id: user.id,
+      name: user.displayName,
+      avatar: user.displayPictureUrl,
+    };
+  }
+
+  async function handleInputTextChanged(text){
+    await kitty.sendKeystrokes({
+      channel: channel,
+      keys: text,
+    })
+  }
+
+  function renderFooter() {
+    if (typing) {
+      return (
+        <View style={styles.footer}>
+          <Text style={styles.textFooter}>{typing.displayName} is typing...</Text>
+        </View>
+      );
+    }
+
+    return null;
+  }
+
   return (
       <GiftedChat
           messages={messages}
@@ -112,23 +161,20 @@ export default function ChatScreen({ route, navigation }) {
           onLoadEarlier={handleLoadEarlier}
           renderBubble={renderBubble}
           renderAvatar={renderAvatar}
+          onInputTextChanged={handleInputTextChanged}
+          isTyping={typing != null}
+          renderFooter={renderFooter}
       />
   );
 }
 
-function mapMessage(message) {
-  return {
-    _id: message.id,
-    text: message.body,
-    createdAt: new Date(message.createdTime),
-    user: mapUser(message.user),
-  };
-}
-
-function mapUser(user) {
-  return {
-    _id: user.id,
-    name: user.displayName,
-    avatar: user.displayPictureUrl,
-  };
-}
+const styles = StyleSheet.create({
+  footer: {
+    paddingRight: 10,
+    paddingLeft: 10,
+    paddingBottom: 5,    
+  },
+  textFooter:{
+    fontStyle: 'italic'
+  }
+});

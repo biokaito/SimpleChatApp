@@ -1,6 +1,6 @@
 import React, {useContext,useEffect, useState} from 'react';
 import { StyleSheet, View, FlatList } from 'react-native';
-import { Divider, List, Title } from 'react-native-paper';
+import { Button, Dialog, Divider, List, Portal, Title } from 'react-native-paper';
 import { NavigationContainer, useIsFocused } from '@react-navigation/native'
 
 import { kitty } from '../Chatkitty';
@@ -12,6 +12,7 @@ export default function HomeScreen({navigation}){
     const { user, logout } = useContext(AuthContext);
     const [channels, setChannels] = useState([]);
     const [loading,setLoading] = useState(true);
+    const [leaveChannel, setLeaveChannel] = useState(null);
 
     const isFocused = useIsFocused();
 
@@ -31,8 +32,23 @@ export default function HomeScreen({navigation}){
             isCancelled = true;
         };
     }, [isFocused, loading]);
+
     if(loading){
         return <Loading />;
+    }
+
+    function handleLeaveChannel(){
+        kitty.leaveChannel({ channel: leaveChannel }).then(()=>{
+            setLeaveChannel(null);
+
+            kitty.getChannels().then((result) =>{
+                setChannels(result.paginator.items);
+            });
+        });
+    }
+
+    function handleDismissLeaveChannel(){
+        setLeaveChannel(null)
     }
     return(
         <View style={styles.container}>
@@ -50,9 +66,24 @@ export default function HomeScreen({navigation}){
                         descriptionStyle={styles.listDescrion}
                         descriptionNumberOfLines={1}
                         onPress={() => navigation.navigate('Chat', { channel: item })}
+                        onLongPress={()=>{
+                            setLeaveChannel(item);
+                        }}
                     />
                 )}
             />
+            <Portal>
+                <Dialog 
+                    visible={leaveChannel}
+                    onDismiss={handleDismissLeaveChannel}
+                >
+                    <Dialog.Title>Leave this channel?</Dialog.Title>
+                    <Dialog.Actions>
+                        <Button onPress={handleDismissLeaveChannel}>Cancel</Button>
+                        <Button onPress={handleLeaveChannel}>Confirm</Button>
+                    </Dialog.Actions>
+                </Dialog>
+            </Portal>
             <FormButton 
                 modeValue="contained"
                 title="Logout"
