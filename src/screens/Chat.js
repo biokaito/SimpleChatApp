@@ -4,6 +4,7 @@ import { StyleSheet, View,Text } from 'react-native';
 import { Entypo } from '@expo/vector-icons';
 import * as Permissions from "expo-permissions";
 import * as ImagePicker from "expo-image-picker";
+import Constants from "expo-constants";
 
 import { kitty } from '../Chatkitty';
 import Loading from '../components/Loading';
@@ -187,10 +188,17 @@ export default function ChatScreen({ route, navigation, showNotification }) {
         aspect: [4, 3], // duy trì tỷ lệ chuẩn
         //base64: true
       });
-      //console.log(response.uri)
+      console.log(response)
+      // if(response){
+      //   await kitty.sendKeystrokes({
+      //     channel: channel,
+      //     keys: response.uri.toString(),
+      //   })
+      // }
     } catch (error) {
       setError(error);
     }
+
   }  
 
   function renderActions(props: Readonly<ActionsProps>){
